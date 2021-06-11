@@ -1,6 +1,6 @@
 [![GoDoc](https://godoc.org/github.com/cinar/csv2?status.svg)](https://godoc.org/github.com/cinar/csv2)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://travis-ci.com/cinar/csv2.svg?branch=master)](https://travis-ci.com/cinar/csv2)
+[![Build Status](https://travis-ci.com/cinar/csv2.svg?branch=main)](https://travis-ci.com/cinar/csv2)
 
 # Csv2 Go
 
@@ -68,11 +68,50 @@ var prices []dailyPrice
 Use the [ReadRowsFromFile](https://pkg.go.dev/github.com/cinar/csv2#ReadRowsFromFile) function to read the CSV file into the slice.
 
 ```Golang
-err := ReadRowsFromFile(testFile, true, &prices)
+err := csv2.ReadRowsFromFile(testFile, true, &prices)
 if err != nil {
     return err
 }
 ```
+
+### Reading as a table
+
+Define a structure for the table.
+
+```Golang
+// Stock prices structure for all columns.
+type stockPrices struct {
+	Date        []time.Time `format:"2006-01-02 15:04:05-07:00"`
+	Close       []float64
+	High        []float64
+	Low         []float64
+	Open        []float64
+	Volume      []int64
+	AdjClose    []float64
+	AdjHigh     []float64
+	AdjLow      []float64
+	AdjOpen     []float64
+	AdjVolume   []int64
+	DivCash     []float64
+	SplitFactor []float64
+}
+```
+
+Define an instance of the table structure.
+
+```Golang
+prices := stockPrices{}
+```
+
+Use the [ReadTableFromFile](https://pkg.go.dev/github.com/cinar/csv2#ReadRowsFromFile) function to read the CSV file into the table.
+
+```Golang
+err := csv2.ReadTableFromFile(testFile, true, &prices)
+if err != nil {
+    t.Fatal(err)
+}
+```
+
 ## License
 
 The source code is provided under MIT License.

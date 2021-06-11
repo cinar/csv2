@@ -32,111 +32,111 @@ type columnInfo struct {
 	Format      string
 }
 
-func setBoolFieldValue(fieldValue reflect.Value, stringValue string) error {
-	value, err := strconv.ParseBool(stringValue)
+func setBoolValue(value reflect.Value, stringValue string) error {
+	actualValue, err := strconv.ParseBool(stringValue)
 	if err == nil {
-		fieldValue.SetBool(value)
+		value.SetBool(actualValue)
 	}
 
 	return err
 }
 
-func setIntFieldValue(fieldValue reflect.Value, stringValue string, bitSize int) error {
-	value, err := strconv.ParseInt(stringValue, 10, bitSize)
+func setIntValue(value reflect.Value, stringValue string, bitSize int) error {
+	actualValue, err := strconv.ParseInt(stringValue, 10, bitSize)
 	if err == nil {
-		fieldValue.SetInt(value)
+		value.SetInt(actualValue)
 	}
 
 	return err
 }
 
-func setUintFieldValue(fieldValue reflect.Value, stringValue string, bitSize int) error {
-	value, err := strconv.ParseUint(stringValue, 10, bitSize)
+func setUintValue(value reflect.Value, stringValue string, bitSize int) error {
+	actualValue, err := strconv.ParseUint(stringValue, 10, bitSize)
 	if err == nil {
-		fieldValue.SetUint(value)
+		value.SetUint(actualValue)
 	}
 
 	return err
 }
 
-func setFloatFieldValue(fieldValue reflect.Value, stringValue string, bitSize int) error {
-	value, err := strconv.ParseFloat(stringValue, bitSize)
+func setFloatValue(value reflect.Value, stringValue string, bitSize int) error {
+	actualValue, err := strconv.ParseFloat(stringValue, bitSize)
 	if err == nil {
-		fieldValue.SetFloat(value)
+		value.SetFloat(actualValue)
 	}
 
 	return err
 }
 
-func setTimeFieldValue(fieldValue reflect.Value, stringValue string, format string) error {
-	value, err := time.Parse(format, stringValue)
+func setTimeValue(value reflect.Value, stringValue string, format string) error {
+	actualValue, err := time.Parse(format, stringValue)
 	if err == nil {
-		fieldValue.Set(reflect.ValueOf(value))
+		value.Set(reflect.ValueOf(actualValue))
 	}
 
 	return err
 }
 
-func setFieldValue(fieldValue reflect.Value, stringValue string, format string) error {
-	fieldKind := fieldValue.Kind()
+func setValue(value reflect.Value, stringValue string, format string) error {
+	kind := value.Kind()
 
-	switch fieldKind {
+	switch kind {
 	case reflect.String:
-		fieldValue.SetString(stringValue)
+		value.SetString(stringValue)
 		return nil
 
 	case reflect.Bool:
-		return setBoolFieldValue(fieldValue, stringValue)
+		return setBoolValue(value, stringValue)
 
 	case reflect.Int:
-		return setIntFieldValue(fieldValue, stringValue, bits.UintSize)
+		return setIntValue(value, stringValue, bits.UintSize)
 
 	case reflect.Int8:
-		return setIntFieldValue(fieldValue, stringValue, 8)
+		return setIntValue(value, stringValue, 8)
 
 	case reflect.Int16:
-		return setIntFieldValue(fieldValue, stringValue, 16)
+		return setIntValue(value, stringValue, 16)
 
 	case reflect.Int32:
-		return setIntFieldValue(fieldValue, stringValue, 32)
+		return setIntValue(value, stringValue, 32)
 
 	case reflect.Int64:
-		return setIntFieldValue(fieldValue, stringValue, 64)
+		return setIntValue(value, stringValue, 64)
 
 	case reflect.Uint:
-		return setUintFieldValue(fieldValue, stringValue, bits.UintSize)
+		return setUintValue(value, stringValue, bits.UintSize)
 
 	case reflect.Uint8:
-		return setUintFieldValue(fieldValue, stringValue, 8)
+		return setUintValue(value, stringValue, 8)
 
 	case reflect.Uint16:
-		return setUintFieldValue(fieldValue, stringValue, 16)
+		return setUintValue(value, stringValue, 16)
 
 	case reflect.Uint32:
-		return setUintFieldValue(fieldValue, stringValue, 32)
+		return setUintValue(value, stringValue, 32)
 
 	case reflect.Uint64:
-		return setUintFieldValue(fieldValue, stringValue, 64)
+		return setUintValue(value, stringValue, 64)
 
 	case reflect.Float32:
-		return setFloatFieldValue(fieldValue, stringValue, 32)
+		return setFloatValue(value, stringValue, 32)
 
 	case reflect.Float64:
-		return setFloatFieldValue(fieldValue, stringValue, 64)
+		return setFloatValue(value, stringValue, 64)
 
 	case reflect.Struct:
-		fieldTypeString := fieldValue.Type().String()
+		typeString := value.Type().String()
 
-		switch fieldTypeString {
+		switch typeString {
 		case "time.Time":
-			return setTimeFieldValue(fieldValue, stringValue, format)
+			return setTimeValue(value, stringValue, format)
 
 		default:
-			return fmt.Errorf("unsupported struct type %s", fieldTypeString)
+			return fmt.Errorf("unsupported struct type %s", typeString)
 		}
 
 	default:
-		return fmt.Errorf("unsupported field kind %s", fieldKind)
+		return fmt.Errorf("unsupported value kind %s", kind)
 	}
 }
 
@@ -227,7 +227,7 @@ func ReadRowsFromReader(reader io.Reader, hasHeader bool, rows interface{}) erro
 		row := reflect.New(rowType).Elem()
 
 		for _, column := range columns {
-			if err = setFieldValue(row.Field(column.FieldIndex), record[column.ColumnIndex], column.Format); err != nil {
+			if err = setValue(row.Field(column.FieldIndex), record[column.ColumnIndex], column.Format); err != nil {
 				return err
 			}
 		}
@@ -250,4 +250,71 @@ func ReadRowsFromFile(fileName string, hasHeader bool, rows interface{}) error {
 	defer file.Close()
 
 	return ReadRowsFromReader(file, hasHeader, rows)
+}
+
+// Read table from reader.
+func ReadTableFromReader(reader io.Reader, hasHeader bool, table interface{}) error {
+	tablePtrType := reflect.TypeOf(table)
+	if tablePtrType.Kind() != reflect.Ptr {
+		return errors.New("table not a pointer")
+	}
+
+	tableType := tablePtrType.Elem()
+	if tableType.Kind() != reflect.Struct {
+		return errors.New("table not a pointer to struct")
+	}
+
+	for i := 0; i < tableType.NumField(); i++ {
+		if tableType.Field(i).Type.Kind() != reflect.Slice {
+			return errors.New("table fields must be all slices")
+		}
+	}
+
+	tableValue := reflect.ValueOf(table).Elem()
+
+	columns := getStructFieldsAsColumns(tableType)
+
+	csvReader := csv.NewReader(reader)
+
+	if hasHeader {
+		if err := readHeader(*csvReader, columns); err != nil {
+			return err
+		}
+	}
+
+	for {
+		record, err := csvReader.Read()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+
+		for _, column := range columns {
+			sliceValue := tableValue.Field(column.FieldIndex)
+
+			itemValue := reflect.New(sliceValue.Type().Elem()).Elem()
+			if err = setValue(itemValue, record[column.ColumnIndex], column.Format); err != nil {
+				return err
+			}
+
+			sliceValue.Set(reflect.Append(sliceValue, itemValue))
+		}
+	}
+
+	return nil
+}
+
+// Read table from file.
+func ReadTableFromFile(fileName string, hasHeader bool, rows interface{}) error {
+	file, err := os.Open(fileName)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	return ReadTableFromReader(file, hasHeader, rows)
 }

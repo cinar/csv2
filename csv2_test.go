@@ -30,7 +30,7 @@ type dailyPrice struct {
 
 // Stock prices structure for all columns.
 type stockPrices struct {
-	Date        []time.Time
+	Date        []time.Time `format:"2006-01-02 15:04:05-07:00"`
 	Close       []float64
 	High        []float64
 	Low         []float64
@@ -55,5 +55,18 @@ func TestReadRowsFromFile(t *testing.T) {
 
 	if n := len(prices); n != 10 {
 		t.Fatalf("prices must have 10 element but has %d", n)
+	}
+}
+
+func TestReadTableFromFile(t *testing.T) {
+	prices := stockPrices{}
+
+	err := ReadTableFromFile(testFile, true, &prices)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if n := len(prices.Date); n != 10 {
+		t.Fatalf("date must have 10 elements but has %d", n)
 	}
 }
